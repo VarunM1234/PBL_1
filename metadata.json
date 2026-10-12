@@ -1,0 +1,6 @@
+{
+  "name": "SmartRoute - Bus Booking & Live Tracking",
+  "description": "SmartRoute: book the bus, watch it arrive. Real-time bus booking, simulated GPS live tracking, waypoint alerts, and operator portal.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

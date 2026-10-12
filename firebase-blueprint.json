@@ -1,0 +1,50 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile information from Google Sign-In",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email", "description": "User email address" },
+        "displayName": { "type": "string", "description": "Full name of the user" },
+        "photoURL": { "type": "string", "description": "Profile picture URL" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Account creation timestamp" }
+      },
+      "required": ["uid", "email"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Passenger ticket booking details",
+      "type": "object",
+      "properties": {
+        "reference": { "type": "string", "description": "Unique booking reference (e.g. SR...)" },
+        "userId": { "type": "string", "description": "UID of the user who booked" },
+        "busId": { "type": "number", "description": "Bus ID" },
+        "busName": { "type": "string", "description": "Name of the bus operator" },
+        "reg": { "type": "string", "description": "Bus registration code" },
+        "dep": { "type": "string", "description": "Departure time HH:MM" },
+        "date": { "type": "string", "format": "date", "description": "Date of journey YYYY-MM-DD" },
+        "seats": { "type": "array", "description": "List of booked seat numbers" },
+        "boardingStop": { "type": "string", "description": "Boarding terminal name" },
+        "droppingStop": { "type": "string", "description": "Dropping terminal name" },
+        "passengers": { "type": "array", "description": "List of passenger records" },
+        "totalAmount": { "type": "number", "description": "Total fare paid in INR" },
+        "status": { "type": "string", "enum": ["CONFIRMED", "CANCELLED", "REFUNDED"], "description": "Booking status" },
+        "paymentStatus": { "type": "string", "description": "Payment status" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Booking timestamp" }
+      },
+      "required": ["reference", "userId", "busId", "busName", "date", "seats", "totalAmount", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "User profile collection stored by user UID"
+    },
+    "/bookings/{bookingId}": {
+      "schema": { "$ref": "#/entities/Booking" },
+      "description": "User ticket bookings collection"
+    }
+  }
+}
