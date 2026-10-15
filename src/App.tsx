@@ -193,7 +193,7 @@ export default function App() {
 
   // Seat selection state
   const [selectedBus, setSelectedBus] = useState<Bus | null>(INITIAL_BUSES[0]);
-  const [selectedSeats, setSelectedSeats] = useState<string[]>(['1A']);
+  const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [activeDeck, setActiveDeck] = useState<'LOWER' | 'UPPER'>('LOWER');
   const [holdTimerSeconds, setHoldTimerSeconds] = useState(600); // 10 minutes Redis lock emulation
 
@@ -202,9 +202,7 @@ export default function App() {
   const [lockedSeats] = useState<string[]>(['3B', 'L9']);
 
   // Passenger & Checkout details
-  const [passengers, setPassengers] = useState<Passenger[]>([
-    { seat: '1A', name: 'Varun Sharma', age: 28, gender: 'Male' }
-  ]);
+  const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [boardingStop, setBoardingStop] = useState('Kashmere Gate ISBT, Delhi (06:00)');
   const [droppingStop, setDroppingStop] = useState('Sindhi Camp Central, Jaipur (11:00)');
   const [includeInsurance, setIncludeInsurance] = useState(true);
