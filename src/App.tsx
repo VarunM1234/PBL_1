@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import RouteMiniMap from './components/RouteMiniMap';
+import React, { useState, useEffect, useRef } from 'react';
+import RouteMiniMap, { NH48_WAYPOINTS } from './components/RouteMiniMap';
 
 // =====================================================================
 // Types & Interfaces
@@ -268,6 +268,59 @@ export default function App() {
   ]);
   const [activeBanner, setActiveBanner] = useState<NotificationItem | null>(null);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [notifPermission, setNotifPermission] = useState<string>(
+    typeof Notification !== 'undefined' ? Notification.permission : 'denied'
+  );
+  const prevProgressRef = useRef(telemetry.progress);
+
+  // Proximity alerts: fire once when the bus crosses a point 10 km before each toll/halt
+  useEffect(() => {
+    const TOTAL_KM = 280;
+    const prevKm = prevProgressRef.current * TOTAL_KM;
+    const nowKm = telemetry.progress * TOTAL_KM;
+    prevProgressRef.current = telemetry.progress;
+    if (nowKm <= prevKm) return; // reset or no movement: no alerts
+
+    const created: NotificationItem[] = [];
+    NH48_WAYPOINTS.forEach((wp) => {
+      if (wp.type !== 'TOLL' && wp.type !== 'HALT') return;
+      const triggerKm = wp.km - 10;
+      if (triggerKm > prevKm && triggerKm <= nowKm) {
+        const remaining = wp.km - nowKm;
+        const where = remaining > 0 ? `${remaining.toFixed(0)} km ahead` : 'just passed';
+        const category: 'TOLL' | 'HALT' = wp.type === 'TOLL' ? 'TOLL' : 'HALT';
+        created.push({
+          id: `alert_${wp.id}_${Date.now()}`,
+          title: category === 'TOLL' ? `Toll Plaza approaching: ${wp.name}` : `Upcoming stop: ${wp.name}`,
+          body: `${wp.name} is ${where}. ${wp.description}`,
+          category,
+          time: 'Just now'
+        });
+      }
+    });
+    if (telemetry.progress >= 1 && prevKm < TOTAL_KM) {
+      created.push({
+        id: `alert_arrival_${Date.now()}`,
+        title: 'You have arrived',
+        body: 'Your bus has reached its destination.',
+        category: 'ARRIVAL',
+        time: 'Just now'
+      });
+    }
+    if (created.length === 0) return;
+
+    const ordered = [...created].reverse();
+    setNotifications((prev) => [...ordered, ...prev]);
+    setUnreadCount((c) => c + created.length);
+    setActiveBanner(ordered[0]);
+    setTimeout(() => setActiveBanner(null), 7000);
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      ordered.forEach((n) => {
+        try { new Notification(n.title, { body: n.body }); } catch { /* ignore */ }
+      });
+    }
+  }, [telemetry.progress]);
 
   // AI Assistant State
   const [aiQuery, setAiQuery] = useState('');
@@ -405,6 +458,7 @@ export default function App() {
       time: 'Just now'
     };
     setNotifications([confNotif, ...notifications]);
+    setUnreadCount((c) => c + 1);
     setActiveBanner(confNotif);
     setTimeout(() => setActiveBanner(null), 7000);
   };
@@ -525,14 +579,14 @@ export default function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', position: 'relative' }}>
             <button
               className="bell-btn"
-              onClick={() => setIsNotifOpen(!isNotifOpen)}
+              onClick={() => { setIsNotifOpen(!isNotifOpen); setUnreadCount(0); }}
               title="View Live Transit Alerts"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
-              {notifications.length > 0 && <span className="bell-badge">{notifications.length}</span>}
+              {unreadCount > 0 && <span className="bell-badge">{unreadCount}</span>}
             </button>
 
             {isNotifOpen && (
@@ -541,6 +595,19 @@ export default function App() {
                   <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>Corridor Notifications</span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>{notifications.length} received</span>
                 </div>
+                {notifPermission === 'default' && (
+                  <button
+                    className="btn"
+                    style={{ marginBottom: '0.5rem', width: '100%' }}
+                    onClick={() => {
+                      if (typeof Notification !== 'undefined') {
+                        Notification.requestPermission().then(setNotifPermission);
+                      }
+                    }}
+                  >
+                    Enable browser alerts
+                  </button>
+                )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '260px', overflowY: 'auto' }}>
                   {notifications.map((n) => (
                     <div key={n.id} style={{ padding: '0.45rem', borderBottom: '1px solid var(--line-subtle)', fontSize: '0.82rem' }}>

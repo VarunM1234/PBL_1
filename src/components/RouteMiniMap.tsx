@@ -9,7 +9,7 @@ export interface Waypoint {
   description: string;
 }
 
-const NH48_WAYPOINTS: Waypoint[] = [
+export const NH48_WAYPOINTS: Waypoint[] = [
   {
     id: 'wp_delhi',
     name: 'Kashmere Gate ISBT, Delhi',
