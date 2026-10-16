@@ -672,12 +672,12 @@ export default function App() {
         {activeTab === 'search' && (
           <div>
             {/* Hero Title */}
-            <div style={{ marginBottom: '1.75rem' }}>
+            <div style={{ marginBottom: '1.5rem', padding: '1.75rem', borderRadius: 'var(--radius-lg)', background: 'linear-gradient(120deg, #0F766E 0%, #0891B2 55%, #4F46E5 100%)', color: '#fff' }}>
               <h1 style={{ margin: 0, fontSize: '2.4rem', fontFamily: 'Outfit, sans-serif', fontWeight: 800, letterSpacing: '-0.025em' }}>
-                Book the Bus. Watch It Arrive.
+                Book the bus. Watch it arrive.
               </h1>
-              <p style={{ margin: '0.4rem 0 0 0', color: 'var(--muted)', fontSize: '1.05rem', maxWidth: '640px' }}>
-                Lock your seats for 10 minutes with zero concurrency conflicts. Track live GPS telemetry, automated toll updates, and food halts across NH-48.
+              <p style={{ margin: '0.4rem 0 0 0', fontSize: '1.05rem', maxWidth: '640px', opacity: 0.92 }}>
+                Hold your seats for 10 minutes. Follow the bus on the map, with toll and halt alerts along NH-48.
               </p>
             </div>
 
@@ -691,6 +691,8 @@ export default function App() {
                   <button type="button" className="btn" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }} onClick={() => handleQuickDate(0)}>Today</button>
                   <button type="button" className="btn" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }} onClick={() => handleQuickDate(1)}>Tomorrow</button>
                   <button type="button" className="btn" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }} onClick={() => handleQuickDate(2)}>+2 Days</button>
+                  <button type="button" className="btn" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }} onClick={() => handleQuickDate(7)}>+7 Days</button>
+                  <button type="button" className="btn" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }} onClick={() => handleQuickDate(30)}>+30 Days</button>
                 </div>
               </div>
 
@@ -1005,7 +1007,7 @@ export default function App() {
 
                   {selectedSeats.length > 0 && (
                     <span className="badge badge-amber" style={{ fontSize: '0.82rem', padding: '0.25rem 0.6rem' }}>
-                      Redis Hold Expires: {formatTime(holdTimerSeconds)}
+                      Seats held for: {formatTime(holdTimerSeconds)}
                     </span>
                   )}
                 </div>
