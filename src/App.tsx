@@ -270,6 +270,17 @@ export default function App() {
   const [activeBanner, setActiveBanner] = useState<NotificationItem | null>(null);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem('sr-theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch { /* ignore */ }
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    try { localStorage.setItem('sr-theme', theme); } catch { /* ignore */ }
+  }, [theme]);
   const [notifPermission, setNotifPermission] = useState<string>(
     typeof Notification !== 'undefined' ? Notification.permission : 'denied'
   );
@@ -578,6 +589,14 @@ export default function App() {
 
           {/* Zone 3: Notification Bell & User Badge */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', position: 'relative' }}>
+            <button
+              className="bell-btn"
+              onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+              title="Toggle light / dark theme"
+              aria-label="Toggle light or dark theme"
+            >
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
             <button
               className="bell-btn"
               onClick={() => { setIsNotifOpen(!isNotifOpen); setUnreadCount(0); }}
