@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import RouteMiniMap, { NH48_WAYPOINTS } from './components/RouteMiniMap';
+import LiveRouteMap from './components/LiveRouteMap';
 
 // =====================================================================
 // Types & Interfaces
@@ -1589,6 +1590,10 @@ export default function App() {
                     <button className={`segmented-btn ${simMultiplier === 120 ? 'active' : ''}`} onClick={() => setSimMultiplier(120)}>×120</button>
                     <button className={`segmented-btn ${simMultiplier === 300 ? 'active' : ''}`} onClick={() => setSimMultiplier(300)}>×300</button>
                   </div>
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <LiveRouteMap progress={telemetry.progress} />
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>
