@@ -32,8 +32,8 @@ Passengers cannot easily tell when a bus will arrive, how full it is, or whether
 | Tickets and My Trips | Working in the browser | Not saved to a database |
 | Live tracking | Simulated | A Leaflet / OpenStreetMap map. The bus moves with the Advance, Traffic Jam and Reset buttons |
 | Alerts and notifications | Working | Toast and bell list, an unread counter, and browser notifications after the user allows them (see below) |
-| AI search and trip copilot | Working | Gemini endpoints in `server.ts`; needs `GEMINI_API_KEY` in `.env` |
-| Admin view | TODO-CONFIRM | |
+| AI search and trip copilot | Not verified | Endpoints exist in `server.ts`; needs a valid `GEMINI_API_KEY` |
+| Admin view | Not verified | Present in the app; not tested for this README |
 | Light and dark theme | Working | Toggle in the header; the choice is remembered |
 | Real GPS from a driver's device | Planned | A design using Firestore exists but is not deployed |
 | User accounts and database | Not in the running app | `src/firebase.ts` and `firestore.rules` exist but `App.tsx` does not use them |
