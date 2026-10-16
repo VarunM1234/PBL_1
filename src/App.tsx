@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import RouteMiniMap from './components/RouteMiniMap';
+import React, { useState, useEffect, useRef } from 'react';
+import RouteMiniMap, { NH48_WAYPOINTS } from './components/RouteMiniMap';
+import LiveRouteMap from './components/LiveRouteMap';
 
 // =====================================================================
 // Types & Interfaces
@@ -193,7 +194,7 @@ export default function App() {
 
   // Seat selection state
   const [selectedBus, setSelectedBus] = useState<Bus | null>(INITIAL_BUSES[0]);
-  const [selectedSeats, setSelectedSeats] = useState<string[]>(['1A']);
+  const [selectedSeats, setSelectedSeats] = useState<string[]>([]);
   const [activeDeck, setActiveDeck] = useState<'LOWER' | 'UPPER'>('LOWER');
   const [holdTimerSeconds, setHoldTimerSeconds] = useState(600); // 10 minutes Redis lock emulation
 
@@ -202,9 +203,7 @@ export default function App() {
   const [lockedSeats] = useState<string[]>(['3B', 'L9']);
 
   // Passenger & Checkout details
-  const [passengers, setPassengers] = useState<Passenger[]>([
-    { seat: '1A', name: 'Varun Sharma', age: 28, gender: 'Male' }
-  ]);
+  const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [boardingStop, setBoardingStop] = useState('Kashmere Gate ISBT, Delhi (06:00)');
   const [droppingStop, setDroppingStop] = useState('Sindhi Camp Central, Jaipur (11:00)');
   const [includeInsurance, setIncludeInsurance] = useState(true);
@@ -270,6 +269,70 @@ export default function App() {
   ]);
   const [activeBanner, setActiveBanner] = useState<NotificationItem | null>(null);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      const saved = localStorage.getItem('sr-theme');
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch { /* ignore */ }
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    try { localStorage.setItem('sr-theme', theme); } catch { /* ignore */ }
+  }, [theme]);
+  const [notifPermission, setNotifPermission] = useState<string>(
+    typeof Notification !== 'undefined' ? Notification.permission : 'denied'
+  );
+  const prevProgressRef = useRef(telemetry.progress);
+
+  // Proximity alerts: fire once when the bus crosses a point 10 km before each toll/halt
+  useEffect(() => {
+    const TOTAL_KM = 280;
+    const prevKm = prevProgressRef.current * TOTAL_KM;
+    const nowKm = telemetry.progress * TOTAL_KM;
+    prevProgressRef.current = telemetry.progress;
+    if (nowKm <= prevKm) return; // reset or no movement: no alerts
+
+    const created: NotificationItem[] = [];
+    NH48_WAYPOINTS.forEach((wp) => {
+      if (wp.type !== 'TOLL' && wp.type !== 'HALT') return;
+      const triggerKm = wp.km - 10;
+      if (triggerKm > prevKm && triggerKm <= nowKm) {
+        const remaining = wp.km - nowKm;
+        const where = remaining > 0 ? `${remaining.toFixed(0)} km ahead` : 'just passed';
+        const category: 'TOLL' | 'HALT' = wp.type === 'TOLL' ? 'TOLL' : 'HALT';
+        created.push({
+          id: `alert_${wp.id}_${Date.now()}`,
+          title: category === 'TOLL' ? `Toll Plaza approaching: ${wp.name}` : `Upcoming stop: ${wp.name}`,
+          body: `${wp.name} is ${where}. ${wp.description}`,
+          category,
+          time: 'Just now'
+        });
+      }
+    });
+    if (telemetry.progress >= 1 && prevKm < TOTAL_KM) {
+      created.push({
+        id: `alert_arrival_${Date.now()}`,
+        title: 'You have arrived',
+        body: 'Your bus has reached its destination.',
+        category: 'ARRIVAL',
+        time: 'Just now'
+      });
+    }
+    if (created.length === 0) return;
+
+    const ordered = [...created].reverse();
+    setNotifications((prev) => [...ordered, ...prev]);
+    setUnreadCount((c) => c + created.length);
+    setActiveBanner(ordered[0]);
+    setTimeout(() => setActiveBanner(null), 7000);
+    if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+      ordered.forEach((n) => {
+        try { new Notification(n.title, { body: n.body }); } catch { /* ignore */ }
+      });
+    }
+  }, [telemetry.progress]);
 
   // AI Assistant State
   const [aiQuery, setAiQuery] = useState('');
@@ -407,6 +470,7 @@ export default function App() {
       time: 'Just now'
     };
     setNotifications([confNotif, ...notifications]);
+    setUnreadCount((c) => c + 1);
     setActiveBanner(confNotif);
     setTimeout(() => setActiveBanner(null), 7000);
   };
@@ -527,14 +591,22 @@ export default function App() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', position: 'relative' }}>
             <button
               className="bell-btn"
-              onClick={() => setIsNotifOpen(!isNotifOpen)}
+              onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+              title="Toggle light / dark theme"
+              aria-label="Toggle light or dark theme"
+            >
+              {theme === 'dark' ? '☀️' : '🌙'}
+            </button>
+            <button
+              className="bell-btn"
+              onClick={() => { setIsNotifOpen(!isNotifOpen); setUnreadCount(0); }}
               title="View Live Transit Alerts"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ink)" strokeWidth="2">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                 <path d="M13.73 21a2 2 0 0 1-3.46 0" />
               </svg>
-              {notifications.length > 0 && <span className="bell-badge">{notifications.length}</span>}
+              {unreadCount > 0 && <span className="bell-badge">{unreadCount}</span>}
             </button>
 
             {isNotifOpen && (
@@ -543,6 +615,19 @@ export default function App() {
                   <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>Corridor Notifications</span>
                   <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>{notifications.length} received</span>
                 </div>
+                {notifPermission === 'default' && (
+                  <button
+                    className="btn"
+                    style={{ marginBottom: '0.5rem', width: '100%' }}
+                    onClick={() => {
+                      if (typeof Notification !== 'undefined') {
+                        Notification.requestPermission().then(setNotifPermission);
+                      }
+                    }}
+                  >
+                    Enable browser alerts
+                  </button>
+                )}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '260px', overflowY: 'auto' }}>
                   {notifications.map((n) => (
                     <div key={n.id} style={{ padding: '0.45rem', borderBottom: '1px solid var(--line-subtle)', fontSize: '0.82rem' }}>
@@ -587,12 +672,12 @@ export default function App() {
         {activeTab === 'search' && (
           <div>
             {/* Hero Title */}
-            <div style={{ marginBottom: '1.75rem' }}>
+            <div style={{ marginBottom: '1.5rem', padding: '1.75rem', borderRadius: 'var(--radius-lg)', background: 'linear-gradient(120deg, #0F766E 0%, #0891B2 55%, #4F46E5 100%)', color: '#fff' }}>
               <h1 style={{ margin: 0, fontSize: '2.4rem', fontFamily: 'Outfit, sans-serif', fontWeight: 800, letterSpacing: '-0.025em' }}>
-                Book the Bus. Watch It Arrive.
+                Book the bus. Watch it arrive.
               </h1>
-              <p style={{ margin: '0.4rem 0 0 0', color: 'var(--muted)', fontSize: '1.05rem', maxWidth: '640px' }}>
-                Lock your seats for 10 minutes with zero concurrency conflicts. Track live GPS telemetry, automated toll updates, and food halts across NH-48.
+              <p style={{ margin: '0.4rem 0 0 0', fontSize: '1.05rem', maxWidth: '640px', opacity: 0.92 }}>
+                Hold your seats for 10 minutes. Follow the bus on the map, with toll and halt alerts along NH-48.
               </p>
             </div>
 
@@ -606,6 +691,8 @@ export default function App() {
                   <button type="button" className="btn" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }} onClick={() => handleQuickDate(0)}>Today</button>
                   <button type="button" className="btn" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }} onClick={() => handleQuickDate(1)}>Tomorrow</button>
                   <button type="button" className="btn" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }} onClick={() => handleQuickDate(2)}>+2 Days</button>
+                  <button type="button" className="btn" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }} onClick={() => handleQuickDate(7)}>+7 Days</button>
+                  <button type="button" className="btn" style={{ padding: '0.2rem 0.6rem', fontSize: '0.75rem' }} onClick={() => handleQuickDate(30)}>+30 Days</button>
                 </div>
               </div>
 
@@ -920,7 +1007,7 @@ export default function App() {
 
                   {selectedSeats.length > 0 && (
                     <span className="badge badge-amber" style={{ fontSize: '0.82rem', padding: '0.25rem 0.6rem' }}>
-                      Redis Hold Expires: {formatTime(holdTimerSeconds)}
+                      Seats held for: {formatTime(holdTimerSeconds)}
                     </span>
                   )}
                 </div>
@@ -1524,6 +1611,10 @@ export default function App() {
                     <button className={`segmented-btn ${simMultiplier === 120 ? 'active' : ''}`} onClick={() => setSimMultiplier(120)}>×120</button>
                     <button className={`segmented-btn ${simMultiplier === 300 ? 'active' : ''}`} onClick={() => setSimMultiplier(300)}>×300</button>
                   </div>
+                </div>
+
+                <div style={{ marginBottom: '1rem' }}>
+                  <LiveRouteMap progress={telemetry.progress} />
                 </div>
 
                 <div style={{ display: 'flex', gap: '0.65rem', flexWrap: 'wrap' }}>

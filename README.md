@@ -1,6 +1,6 @@
-# SmartRoute: Intelligent Bus Route Management and Tracking
+# SmartRoute: Bus Booking and Simulated Live Tracking
 
-SmartRoute is a web application for searching bus routes, booking seats, and following a bus's progress on a trip, with an AI assistant that answers journey questions.
+SmartRoute is a web prototype for booking intercity bus seats and following a bus on a map. It currently covers one corridor, Delhi to Jaipur on NH-48. **The bus position is simulated. There is no real GPS in the running app yet.**
 
 ## Project information
 
@@ -15,46 +15,51 @@ SmartRoute is a web application for searching bus routes, booking seats, and fol
 
 ## Problem
 
-Passengers lack reliable arrival information, cannot see how crowded a bus is, and cannot book a seat in advance. Operators cannot easily monitor several buses at once. SmartRoute explores a single interface for route search, seat booking, journey tracking, and fleet monitoring.
+Passengers cannot easily tell when a bus will arrive, how full it is, or whether a seat is free before they travel. SmartRoute explores one interface for searching buses, choosing seats, and following a trip with alerts for tolls and food halts.
 
 **Primary users:** Students and staff who use the college bus service.
 
-**Alternatives and how this differs:** general map apps give live traffic and ETAs but do not provide seat booking or operator tools for a specific bus service. State here, in one or two sentences, what your project adds.
+**Alternatives:** general map apps show traffic and arrival times but do not offer seat selection or stop-by-stop alerts for a specific bus service. This project's aim is to combine those in one place for a defined group of users.
 
-## Project status
+## Current status
 
 | Feature | Status | Notes |
 | --- | --- | --- |
-| User sign-in (Firebase Auth) | Implemented | `src/firebase.ts` |
-| Bookings stored in Firestore | Implemented | Owner-only rules in `firestore.rules` |
-| Route search and booking screens | Implemented | `src/smartroute-booking-views.js` |
-| AI trip copilot, smart search, trip assistant, maps guide | Implemented | Four Gemini endpoints in `server.ts` |
-| Live bus tracking | Simulated | Client-side simulation (timer, randomised speed) in `src/smartroute-tracker.js`; no real GPS yet |
-| Seat selection and booking | Partly implemented | Seat locking is simulated in `src/smartroute-engine.js`; confirmed bookings are saved to Firestore (`src/firebase.ts`) |
-| Multi-bus admin tracker | Prototype | `frontend/src/admin/MultiBusFleetTracker.jsx` exists but is not imported by the running app |
-| Socket.IO live updates, Redis seat locks, MySQL | Not integrated | Earlier prototype in `backend/`; its dependencies are not in `package.json` |
-| Toll and restaurant push alerts (FCM) | Planned | |
-| ML-based ETA | Planned | |
+| Bus search and filters | Working | Date chips (today to +30 days), coach class, AC and sleeper filters, price limit |
+| Seat selection | Working | 2+2 seater and 2+1 sleeper layouts, up to 6 seats. Booked and locked seats are fixed sample data |
+| Seat hold | Simulated | A 10-minute countdown in the browser. There is no shared lock, so two users could pick the same seat |
+| Checkout and payment | Simulated | Passenger form, insurance, promo code and a mock payment dialog. No real payment |
+| Tickets and My Trips | Working in the browser | Not saved to a database |
+| Live tracking | Simulated | A Leaflet / OpenStreetMap map. The bus moves with the Advance, Traffic Jam and Reset buttons |
+| Alerts and notifications | Working | Toast and bell list, an unread counter, and browser notifications after the user allows them (see below) |
+| AI search and trip copilot | Not verified | Endpoints exist in `server.ts`; needs a valid `GEMINI_API_KEY` |
+| Admin view | Not verified | Present in the app; not tested for this README |
+| Light and dark theme | Working | Toggle in the header; the choice is remembered |
+| Real GPS from a driver's device | Planned | A design using Firestore exists but is not deployed |
+| User accounts and database | Not in the running app | `src/firebase.ts` and `firestore.rules` exist but `App.tsx` does not use them |
+| Alerts when the browser is closed | Planned | Needs a service worker and Firebase Cloud Messaging |
+
+## How alerts work
+
+When the simulated bus passes a point 10 km before a toll plaza or the midway halt, the app shows a toast, adds an entry to the bell list, and sends a browser notification. An arrival alert fires at the destination. Resetting the trip does not fire alerts. Browser notifications need permission (use the "Enable browser alerts" button in the bell list) and only work while the browser is open.
 
 ## Technology
 
 | Layer | Technology |
 | --- | --- |
-| Frontend | React 19, Vite 8, Tailwind CSS 4, motion, lucide-react |
+| Frontend | React 19, Vite 8, Tailwind CSS 4, Leaflet with OpenStreetMap tiles |
 | Server | Node.js, Express 4, `tsx` (runs `server.ts`) |
-| Data and auth | Firebase Authentication, Cloud Firestore |
-| AI | Google Gemini via `@google/genai` (called from the server only) |
+| AI | Google Gemini through `@google/genai`, called from the server only |
 | Language | TypeScript and JavaScript |
 
 ## Architecture
 
 ```
-Browser (React + Vite)
-   |-- Firebase Auth / Firestore (direct, protected by firestore.rules)
-   |-- POST /api/ai/*  -->  Express server (server.ts)  -->  Gemini API
+Browser (React + Vite) --> Express server (server.ts)
+                              |-- serves the app (Vite in development)
+                              |-- POST /api/ai/*  -->  Gemini API
+Browser --> OpenStreetMap tile servers (map images)
 ```
-
-The Express server also serves the Vite app (dev middleware in development, `dist/` in production). The Gemini key stays on the server.
 
 ## Getting started
 
@@ -70,40 +75,42 @@ npm run dev               # http://localhost:3000
 
 If `npm install` reports an `esbuild` peer-dependency conflict, make sure `esbuild` in `package.json` is `^0.28.0`.
 
-Firebase settings are read from `firebase-applet-config.json`. To deploy the security rules, use the Firebase CLI (`firebase deploy --only firestore:rules`).
-
 ## Repository structure
 
 ```
-server.ts                 Express server, Gemini endpoints, Vite integration
-src/                      Main React app (App.tsx, firebase.ts, views, tracker, engine)
-frontend/src/             Additional components: SeatLayout, BookingForm, LiveTrackerMap, admin tracker
-backend/                  Earlier Socket.IO / MySQL / Redis prototype (not wired into the running app)
-firestore.rules           Firestore security rules (default deny)
-firebase-applet-config.json  Firebase project settings
+server.ts                      Express server and Gemini endpoints
+index.html                     Theme colours (light and dark variables)
+src/App.tsx                    Main application (all screens)
+src/components/LiveRouteMap.tsx   Leaflet live map (simulated bus)
+src/components/RouteMiniMap.tsx   Route preview with waypoint list
+src/firebase.ts                Firebase helpers (not used by the running app)
+src/smartroute-*.js, frontend/, backend/   Earlier prototypes, not used by the running app
+firestore.rules                Firestore security rules (default deny)
 ```
 
 ## Security
 
-- Firestore defaults to deny. Users can read and write only their own `users` and `bookings` documents.
-- API keys live in `.env` (ignored by git); `.env.example` contains placeholders only.
-- Known gap: the `/api/ai/*` endpoints do not yet require sign-in or rate limiting. Planned fix: verify the Firebase ID token on each request and limit requests per user.
+- Secrets live in `.env`, which git ignores. `.env.example` contains placeholders only.
+- The Gemini key stays on the server.
+- Known gap: the `/api/ai/*` endpoints have no sign-in check or rate limit, so anyone who can reach the server could use the API quota.
+- Firestore rules default to deny and allow only owner access to `users` and `bookings`, but the running app does not use Firestore yet.
 
 ## Known limitations
 
-- Bus position and ETA come from a client-side simulation, not live GPS, traffic data, or road routing. Real GPS from a driver device is the next milestone.
-- Seat locking in `src/smartroute-engine.js` is simulated; there is no shared lock service yet.
-- Seat availability is not protected against two users booking the same seat at the same moment. Planned fix: a Firestore transaction (or a lock) on seat reservation.
-- No automated tests yet.
+- Bus position, speed and arrival times are simulated. Stop coordinates for the midway halt and Kotputli are approximate, and the map draws straight lines between stops, not road geometry.
+- Seat availability is sample data and holds are not shared between users.
+- Bookings and tickets are not stored in a database.
+- Map tiles come from the public OpenStreetMap servers, which is fine for a demo but not for a public deployment.
+- There are no automated tests yet.
 
-## Evaluation plan
+## Planned evaluation (not yet carried out)
 
 | Measure | How |
 | --- | --- |
-| ETA error | Compare predicted and actual arrival on test trips (minutes) |
-| Tracking delay | Time from location update to passenger screen |
-| Task time | Time for new users to find their bus and book a seat (target under 60 seconds, 5 users) |
-| Booking correctness | Two simultaneous bookings of one seat must not both succeed |
+| ETA error | Compare predicted and actual arrival on real test trips |
+| Tracking delay | Time from a location update to the passenger screen |
+| Task time | Time for new users to find a bus and book a seat (target under 60 seconds, 5 users) |
+| Booking correctness | Two users booking one seat at the same moment must not both succeed |
 
 ## Team
 
